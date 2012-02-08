@@ -121,6 +121,60 @@ var Pamscrape = (function() {
 	return candidates;
     }
 
+    function scrapeLinkedIn() {
+	var headings = ['Last', 'First', 'Company', 'Title', 'Email'];
+	var contacts = [];
+	var conns = $('div.conn-wrapper');
+	var conn_div = null;
+	var row = null;
+	var name_regexp = /([^,]*),\s+(.*)/
+	function handleConns() {
+	    if (conns.size() === 0) {
+		display(contacts);
+		console.log(csv(contacts));
+		return;
+	    }
+	    conn_div = conns.get(0);
+	    console.log(conn_div);
+
+	    var conn_wrapped = $(conn_div);
+	    var names = name_regexp.exec(
+              conn_wrapped.find('span.conn-name').text()
+            );
+	    var company_span = conn_wrapped.find('span.company-name');
+	    var title = company_span.parent().text();
+	    row = [
+		$.trim(names[1]),
+		$.trim(names[2]),
+		company_span.text(),
+		title
+	    ];
+	    var event = document.createEvent("HTMLEvents");
+	    event.initEvent('click', true, true);
+	    conn_div.dispatchEvent(event);
+	    setTimeout(loadCallback, 20);
+	}
+
+	function loadCallback() {
+	    if ($('div#detail-panel .indicator').size() > 0) {
+		setTimeout(loadCallback, 10);
+		return;prev
+	    }
+	    var email = $('div#detail-panel dl dd a');
+	    email.each(function(_, a) {
+		a = $(a);
+		if (a.attr('href') &&
+		    a.attr('href').indexOf('mailto:') === 0) {
+		    row.push(a.text());
+		}
+	    });
+	    contacts.push(row);
+	    conns = conns.slice(1);
+	    handleConns();
+	}
+	handleConns();
+    }
+
     function scrape() {
 	var scrapeFun = null;
 	for (name in scrapers) {
@@ -143,6 +197,8 @@ var Pamscrape = (function() {
 	scrapeCalifornia,
 	"http://www.sos.mo.gov/enrweb/candidatelist.asp":
 	scrapeMissouri,
+	"http://www.linkedin.com/connections":
+	scrapeLinkedIn,
     };
 
     return {
