@@ -3,6 +3,10 @@
 
 var Pamscrape = (function() {
     var init_complete = false;
+    var zip_regexp = /.*,\s+[A-Z]{2}\s+(\d{5}([-]\d{4})?)/;
+    if (!zip_regexp.test('Washington, DC 20008-2470')) {
+	throw new Exception('Failed to match test regexp');
+    }
 
     function addJQuery() {
 	var s = document.createElement('script');
@@ -39,32 +43,6 @@ var Pamscrape = (function() {
 	return rows.join("\n");
     }
 
-    function scrapeCalifornia() {
-	var headings = ['Candidate', 'Zip', 'Race'];
-	var candidates = [headings];
-	var races = $('#centercontent h2');
-	
-	var zip_regexp = /.*,\s+[A-Z]{2}\s+(\d{5}([-]\d{4})?)/;
-	if (!zip_regexp.test('Washington, DC 20008-2470')) {
-	    throw new Exception('Failed to match test regexp');
-	}
-	function handleRace(race_idx, race) {
-	    var name = race.innerText;
-	    var ps = $(race).nextUntil('h2').filter('p').not('#footer');
-	    ps.each(function(idx, p) {
-		p = $(p);
-		var zip = zip_regexp.exec(p.text());
-		if (zip) {
-		    p.find('span').each(function(span_idx, span) {
-			candidates.push([span.innerText, zip[1], name]);
-		    });
-		}
-	    });
-	}
-	races.each(handleRace);
-	return candidates;
-    }
-
     function display(rows) {
 	var tbl = $('<table/>');
 	var tbody = $('<tbody/>');
@@ -97,8 +75,60 @@ var Pamscrape = (function() {
 	$('body').append(div);
     }
 
+    function scrapeCalifornia() {
+	var headings = ['Candidate', 'Zip', 'Race'];
+	var candidates = [headings];
+	var races = $('#centercontent h2');
+	
+	function handleRace(race_idx, race) {
+	    var name = race.innerText;
+	    var ps = $(race).nextUntil('h2').filter('p').not('#footer');
+	    ps.each(function(idx, p) {
+		p = $(p);
+		var zip = zip_regexp.exec(p.text());
+		if (zip) {
+		    p.find('span').each(function(span_idx, span) {
+			candidates.push([span.innerText, zip[1], name]);
+		    });
+		}
+	    });
+	}
+	races.each(handleRace);
+	return candidates;
+    }
+
+    function scrapeMissouri() {
+	var headings = ['Candidate', 'Zip', 'Race', 'Party'];
+	var candidates = [headings];
+	var races = $('table tbody tr table tbody tr[bgcolor] td.office');
+	function handleRace(_, race_td) {
+	    var race_name = race_td.innerText;
+	    var rows = $(race_td).parent().nextUntil(':not([bgcolor])');
+	    $(rows).each(function(_, row) {
+		var children = $(row).children();
+		var zip = zip_regexp.exec(children.get(3).innerText);
+		if (zip) {
+		    candidates.push([
+			children.get(1).innerText,
+			zip[1],
+			race_name,
+			children.get(2).innerText
+		    ]);
+		}
+	    });
+	}
+	$(races).each(handleRace);
+	return candidates;
+    }
+
     function scrape() {
-	var scrapeFun = scrapers[window.location];
+	var scrapeFun = null;
+	for (name in scrapers) {
+	    if (0 === String(window.location).indexOf(name)) {
+		scrapeFun = scrapers[name];
+		break;
+	    }
+	}
 	if (!scrapeFun) {
 	    console.log('No scraper defined for ' + window.location);
 	    return;
@@ -109,8 +139,10 @@ var Pamscrape = (function() {
     }
 
     var scrapers = {
-	"http://www.sos.ca.gov/elections/2000_candidate_list.htm":
-	scrapeCalifornia
+	"http://www.sos.ca.gov/elections/":
+	scrapeCalifornia,
+	"http://www.sos.mo.gov/enrweb/candidatelist.asp":
+	scrapeMissouri,
     };
 
     return {
