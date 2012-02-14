@@ -175,6 +175,30 @@ var Pamscrape = (function() {
 	handleConns();
     }
 
+    function scrapeArizona() {
+	var races = $('font > table').slice(2).find('tr[bgcolor=red]');
+	var headings = ['Candidate', 'Zip', 'Race', 'Party'];
+	var candidates = [headings];
+	function handleRace(_, race_tr) {
+	    var race = $(race_tr);
+	    var race_name = $.trim(race.text());
+	    var candidate_rows = race.nextUntil('tr[bgcolor=red]');
+	    function handleRow(_, candidate_tr) {
+		var candidate = $(candidate_tr).children();
+		var party = $.trim(candidate.eq(0).text());
+		var info = candidate.eq(1).find('table > tbody')
+		    .children();
+		var name = $.trim(info.eq(0).text());
+		var address = info.eq(1).find('td').eq(0).text();
+		var zip = zip_regexp.exec(address);
+		candidates.push([name, $.trim(zip[1]), race_name, party]);
+	    }
+	    candidate_rows.each(handleRow);
+	}
+	races.each(handleRace);
+	return candidates;
+    }
+
     function scrape() {
 	var scrapeFun = null;
 	for (name in scrapers) {
@@ -199,6 +223,8 @@ var Pamscrape = (function() {
 	scrapeMissouri,
 	"http://www.linkedin.com/connections":
 	scrapeLinkedIn,
+	"http://www.azsos.gov/election":
+	scrapeArizona,
     };
 
     return {
