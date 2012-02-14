@@ -199,6 +199,38 @@ var Pamscrape = (function() {
 	return candidates;
     }
 
+    function scrapeOregon() {
+	var races = $('div#content > h3').slice(2);
+	var headings = ['Candidate', 'Zip', 'Race', 'Party'];
+	var candidates = [headings];
+	function handleRace(_, race_h3) {
+	    var race = $(race_h3);
+	    var race_name = $.trim(race.text());
+	    var candidate_ps = race.nextUntil('h3');
+	    var zip_found = null;
+	    function handleCandidate(_, candidate_p) {
+		if (!$.trim(candidate_p.innerHTML)) {
+		    return;
+		}
+		var rows = candidate_p.innerHTML.split('<br>');
+		var name_and_party = rows[0].split('-');
+		var name = $.trim(name_and_party[0]);
+		var party_matches = /\((.+)\)/.exec(name_and_party[1]);
+		var party = null !== party_matches ? party_matches[1] : null;
+		$.each($(rows).slice(2), function (_, row) {
+		    var zip = zip_regexp.exec(row);
+		    if (null !== zip) {
+			zip_found = $.trim(zip[1]);
+		    }
+		});
+		candidates.push([name, zip_found, race_name, party]);
+	    }
+	    candidate_ps.each(handleCandidate);
+	}
+	races.each(handleRace);
+	return candidates;
+    }
+
     function scrape() {
 	var scrapeFun = null;
 	for (name in scrapers) {
@@ -225,6 +257,8 @@ var Pamscrape = (function() {
 	scrapeLinkedIn,
 	"http://www.azsos.gov/election":
 	scrapeArizona,
+	"http://www.oregonvotes.org/pages/history/archive":
+	scrapeOregon,
     };
 
     return {
