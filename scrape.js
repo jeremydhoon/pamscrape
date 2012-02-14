@@ -231,6 +231,31 @@ var Pamscrape = (function() {
 	return candidates;
     }
 
+    function scrapeOregonElec() {
+	var candidate_rows = $('tr:has(td[align=left])');
+	var headings = ['Candidate', 'Zip', 'Race', 'Party'];
+	var candidates = [headings];
+	function handleRow(_, row_tr) {
+	    var row = $(row_tr);
+	    var race_name = $.trim(row.text());
+	    row = row.next();
+	    var name_and_party = /^(.+)\s+\((.+)\)$/.exec($.trim(row.text()));
+	    var zip = null;
+	    while (!zip && row) {
+		row = row.next();
+		zip = zip_regexp.exec(row.text());
+	    }
+	    candidates.push([
+		$.trim(name_and_party[1]),
+		$.trim(zip[1]),
+		race_name,
+		$.trim(name_and_party[2])
+	    ]);
+	}
+	candidate_rows.each(handleRow);
+	return candidates;
+    }
+
     function scrape() {
 	var scrapeFun = null;
 	for (name in scrapers) {
@@ -259,6 +284,8 @@ var Pamscrape = (function() {
 	scrapeArizona,
 	"http://www.oregonvotes.org/pages/history/archive":
 	scrapeOregon,
+	"http://egov.sos.state.or.us/elec/pkg_e1_web_office.office_detl_print":
+	scrapeOregonElec,
     };
 
     return {
